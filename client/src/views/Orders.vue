@@ -75,6 +75,74 @@
         </div>
       </div>
     </div>
+
+    <div class="card submitted-orders">
+      <div class="card-header">
+        <h3 class="card-title">{{ t('orders.submittedOrders') }} ({{ restockOrders.length }})</h3>
+      </div>
+      <div v-if="restockLoading" class="loading">{{ t('common.loading') }}</div>
+      <div v-else-if="restockError" class="error">{{ restockError }}</div>
+      <div v-else-if="restockOrders.length === 0" class="empty-state">{{ t('orders.noSubmittedOrders') }}</div>
+      <div v-else class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>{{ t('orders.submitted.orderNumber') }}</th>
+              <th>{{ t('orders.submitted.submittedDate') }}</th>
+              <th>{{ t('orders.submitted.items') }}</th>
+              <th>{{ t('orders.submitted.totalCost') }}</th>
+              <th>{{ t('orders.submitted.status') }}</th>
+              <th>{{ t('orders.submitted.leadTime') }}</th>
+              <th>{{ t('orders.submitted.expectedDelivery') }}</th>
+              <th>{{ t('orders.submitted.daysRemaining') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template v-for="order in restockOrders" :key="order.id">
+              <tr>
+                <td><strong>{{ order.order_number }}</strong></td>
+                <td>{{ formatDate(order.submitted_date) }}</td>
+                <td>
+                  <button type="button" class="expand-toggle" :aria-expanded="isExpanded(order.id)" @click="toggleExpanded(order.id)">
+                    {{ isExpanded(order.id) ? '▼' : '▶' }}
+                    {{ t('orders.itemsCount', { count: order.items.length }) }}
+                  </button>
+                </td>
+                <td><strong>{{ formatMoney(order.total_cost) }}</strong></td>
+                <td><span class="badge info">{{ restockStatusLabel(order.status) }}</span></td>
+                <td>{{ t('orders.submitted.days', { count: order.lead_time_days }) }}</td>
+                <td>{{ formatDate(order.expected_delivery_date) }}</td>
+                <td>{{ daysRemainingLabel(order.expected_delivery_date) }}</td>
+              </tr>
+              <tr v-if="isExpanded(order.id)" class="lines-row">
+                <td colspan="8">
+                  <table class="lines-table">
+                    <thead>
+                      <tr>
+                        <th>{{ t('orders.submitted.sku') }}</th>
+                        <th>{{ t('orders.submitted.itemName') }}</th>
+                        <th>{{ t('orders.submitted.quantity') }}</th>
+                        <th>{{ t('orders.submitted.unitCost') }}</th>
+                        <th>{{ t('orders.submitted.lineTotal') }}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="line in order.items" :key="line.item_sku">
+                        <td><strong>{{ line.item_sku }}</strong></td>
+                        <td>{{ line.item_name }}</td>
+                        <td>{{ line.quantity }}</td>
+                        <td>{{ formatMoney(line.unit_cost, 2) }}</td>
+                        <td>{{ formatMoney(line.line_total, 2) }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -95,6 +163,12 @@ export default {
     const loading = ref(true)
     const error = ref(null)
     const orders = ref([])
+
+    // Submitted restocking orders (independent of global filters)
+    const restockOrders = ref([])
+    const restockLoading = ref(true)
+    const restockError = ref(null)
+    const expandedIds = ref(new Set())
 
     // Use shared filters
     const {
@@ -146,14 +220,65 @@ export default {
     const formatDate = (dateString) => {
       const { currentLocale } = useI18n()
       const locale = currentLocale.value === 'ja' ? 'ja-JP' : 'en-US'
-      return new Date(dateString).toLocaleDateString(locale, {
+      const date = new Date(dateString)
+      if (isNaN(date.getTime())) return '-'
+      return date.toLocaleDateString(locale, {
         year: 'numeric',
         month: 'short',
         day: 'numeric'
       })
     }
 
-    onMounted(loadOrders)
+    const loadRestockOrders = async () => {
+      try {
+        restockLoading.value = true
+        restockError.value = null
+        restockOrders.value = await api.getRestockOrders()
+      } catch (err) {
+        restockError.value = t('orders.loadSubmittedError') + ': ' + err.message
+      } finally {
+        restockLoading.value = false
+      }
+    }
+
+    const isExpanded = (id) => expandedIds.value.has(id)
+    const toggleExpanded = (id) => {
+      const next = new Set(expandedIds.value)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      expandedIds.value = next
+    }
+
+    const formatMoney = (value, decimals = 0) => {
+      const n = Number(value)
+      if (!Number.isFinite(n)) return '-'
+      return n.toLocaleString('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+      })
+    }
+
+    const restockStatusLabel = (status) => {
+      const key = `status.${String(status).toLowerCase()}`
+      const label = t(key)
+      return label === key ? status : label
+    }
+
+    const daysRemainingLabel = (dateString) => {
+      const d = new Date(dateString)
+      if (isNaN(d.getTime())) return '-'
+      const days = Math.ceil((d.getTime() - Date.now()) / 86400000)
+      if (days < 0) return t('orders.submitted.delivered')
+      if (days === 0) return t('orders.submitted.dueToday')
+      return t('orders.submitted.days', { count: days })
+    }
+
+    onMounted(() => {
+      loadOrders()
+      loadRestockOrders()
+    })
 
     return {
       t,
@@ -163,6 +288,14 @@ export default {
       getOrdersByStatus,
       getOrderStatusClass,
       formatDate,
+      restockOrders,
+      restockLoading,
+      restockError,
+      isExpanded,
+      toggleExpanded,
+      formatMoney,
+      restockStatusLabel,
+      daysRemainingLabel,
       currencySymbol,
       translateProductName,
       translateCustomerName
@@ -275,5 +408,42 @@ export default {
 .item-meta {
   font-size: 0.813rem;
   color: #64748b;
+}
+
+/* Submitted restocking orders */
+.submitted-orders {
+  margin-top: 1.5rem;
+}
+
+.empty-state {
+  padding: 2rem;
+  text-align: center;
+  color: #64748b;
+  font-size: 0.938rem;
+}
+
+.expand-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: #3b82f6;
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+.expand-toggle:hover {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.lines-row td {
+  background: #f8fafc;
+  padding: 0.75rem 1.5rem;
+}
+
+.lines-table {
+  background: white;
+  border: 1px solid #e2e8f0;
 }
 </style>
