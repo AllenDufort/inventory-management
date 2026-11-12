@@ -5,6 +5,7 @@ export default {
     inventory: 'Inventory',
     orders: 'Orders',
     finance: 'Finance',
+    restocking: 'Restocking',
     demandForecast: 'Demand Forecast',
     companyName: 'Catalyst Components',
     subtitle: 'Inventory Management System'
@@ -112,6 +113,27 @@ export default {
     onTimeDelivery: 'On-Time Delivery',
     itemsCount: '{count} items',
     quantity: 'Qty',
+    submittedOrders: 'Submitted Restocking Orders',
+    noSubmittedOrders: 'No restocking orders have been submitted yet.',
+    loadSubmittedError: 'Failed to load submitted orders',
+    submitted: {
+      orderNumber: 'Order Number',
+      submittedDate: 'Submitted',
+      items: 'Items',
+      totalCost: 'Total Cost',
+      status: 'Status',
+      leadTime: 'Lead Time',
+      expectedDelivery: 'Expected Delivery',
+      daysRemaining: 'Days Remaining',
+      days: '{count} days',
+      dueToday: 'Due today',
+      delivered: 'Arrived',
+      sku: 'SKU',
+      itemName: 'Item',
+      quantity: 'Qty',
+      unitCost: 'Unit Cost',
+      lineTotal: 'Line Total'
+    },
     table: {
       orderNumber: 'Order Number',
       orderId: 'Order ID',
@@ -206,6 +228,7 @@ export default {
     backordered: 'Backordered',
     inStock: 'In Stock',
     lowStock: 'Low Stock',
+    submitted: 'Submitted',
     adequate: 'Adequate'
   },
 
@@ -309,6 +332,36 @@ export default {
     english: 'English',
     japanese: 'Japanese',
     selectLanguage: 'Select Language'
+  },
+
+  // Restocking
+  restocking: {
+    title: 'Restocking',
+    description: 'Set a budget and order the items with the largest forecasted demand gaps',
+    budget: 'Budget',
+    budgetLabel: 'Restocking Budget',
+    recommendedTotal: 'Recommended Total',
+    remainingBudget: 'Remaining Budget',
+    itemCount: 'Items',
+    recommendations: 'Recommendations',
+    updating: 'Updating...',
+    empty: 'No items can be recommended within this budget.',
+    placeOrder: 'Place Order',
+    placing: 'Placing Order...',
+    orderPlaced: 'Order {orderNumber} placed. Expected delivery: {date}.',
+    viewOrders: 'View in Orders',
+    loadError: 'Failed to load recommendations',
+    orderError: 'Failed to place order',
+    table: {
+      sku: 'SKU',
+      itemName: 'Item Name',
+      trend: 'Trend',
+      demandGap: 'Demand Gap',
+      quantity: 'Recommended Qty',
+      unitCost: 'Unit Cost',
+      lineTotal: 'Line Total',
+      leadTime: 'Lead Time (days)'
+    }
   },
 
   // Common
